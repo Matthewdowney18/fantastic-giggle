@@ -37,12 +37,13 @@ def check_spelling(text):
     :return: list of errors
     '''
     incorrect = set()
-    num_incorrect = 0
+    length = 0
     words = tokenizer.tokenize(text)
     for element in words:
+        length += 1
         if not hobj.spell(element):
             incorrect.add(element)
-    return list(incorrect)
+    return list(incorrect), length
 
 
 def find_answers(soup, answer_counter, question_counter, url, columns):
@@ -54,6 +55,10 @@ def find_answers(soup, answer_counter, question_counter, url, columns):
     :return: returns the count of how many text files have been made so more files can continue to be made
     """
     divs = soup.find_all("div", class_="Answer AnswerBase")  # finds all the div tags with the answer class
+    qdiv = soup.find_all("h1")
+    for q in qdiv:
+        question_text = q.find("span", class_="ui_qtext_rendered_qtext")
+        question_counter += 1
     for d in divs:
         answers = d.find_all("p")  # within the span tags finds all the paragraph tags so answers can be kept together
         answer_counter += 1
@@ -66,8 +71,8 @@ def find_answers(soup, answer_counter, question_counter, url, columns):
                 mispelled, line_length = check_spelling(a.text)
                 length += line_length
                 mispelled.append(mispelled)
-        dictonary = make_dictionary(answer_counter, question_counter, url, columns, mispelled, length)
-    return answer_counter, dictonary
+        dictonary = make_dictionary(answer_counter, question_counter, url, columns, mispelled, question_text, length)
+    return answer_counter, question_counter, dictonary
 
 def soup_given_url(given_url):
     """
@@ -114,9 +119,8 @@ def get_dictionaries(urls, columns):
     question_counter = 0
     for url in urls:
         soup = soup_given_url(url)
-        answer_count, dictionary = find_answers(soup, answer_count, question_counter, url, columns)
+        answer_count, question_counter, dictionary = find_answers(soup, answer_count, question_counter, url, columns)
         list_of_dictionaries.append(dictionary)
-        question_counter += 1
 
     return list_of_dictionaries
 
