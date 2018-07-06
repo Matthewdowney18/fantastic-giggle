@@ -7,6 +7,7 @@ from nltk.tokenize import RegexpTokenizer
 import hunspell
 import pandas as pd
 import os
+import naughty
 
 
 hobj = hunspell.HunSpell('/usr/share/hunspell/en_US.dic', '/usr/share/hunspell/en_US.aff')
@@ -114,8 +115,10 @@ def get_urls_list(browser):
     '''
     list = []
     post_elems = browser.find_elements_by_class_name("question_link")
-    for post in post_elems:
-        list.append(post.get_attribute('href'))
+    for po in post_elems:
+        url = po.get_attribute('href')
+        if "unanswered" not in url:
+            list.append(url)
     return list
 
 
