@@ -41,23 +41,14 @@ def check_spelling(text):
     :param text: the text
     :return: list of errors
     '''
-<<<<<<< HEAD
     incorrect = []
-=======
-    incorrect = set()
->>>>>>> 616b1b472291377cb5ba7254f1fd7e9bd0bf3432
     length = 0
     words = tokenizer.tokenize(text)
     for element in words:
         length += 1
         if not hobj.spell(element):
-<<<<<<< HEAD
             incorrect.append(element)
     return incorrect, length
-=======
-            incorrect.add(element)
-    return list(incorrect), length
->>>>>>> 616b1b472291377cb5ba7254f1fd7e9bd0bf3432
 
 
 def find_answers(soup, answer_counter, question_counter, url, columns):
@@ -85,16 +76,10 @@ def find_answers(soup, answer_counter, question_counter, url, columns):
                 f.write("\n")
                 mispelled, line_length = check_spelling(a.text)
                 length += line_length
-<<<<<<< HEAD
                 all_mispelled.update(set(mispelled))
         dictonary = make_dictionary(answer_counter, question_counter, url, columns, list(all_mispelled), question_text.text, length)
         dictonaries.append(dictonary)
     return answer_counter, question_counter, dictonaries
-=======
-                mispelled.append(mispelled)
-        dictonary = make_dictionary(answer_counter, question_counter, url, columns, mispelled, question_text, length)
-    return answer_counter, question_counter, dictonary
->>>>>>> 616b1b472291377cb5ba7254f1fd7e9bd0bf3432
 
 def soup_given_url(given_url):
     """
@@ -143,11 +128,7 @@ def get_dictionaries(urls, columns):
         print('urls left: '+str(len(urls)-question_counter))
         soup = soup_given_url(url)
         answer_count, question_counter, dictionary = find_answers(soup, answer_count, question_counter, url, columns)
-<<<<<<< HEAD
         list_of_dictionaries+=dictionary
-=======
-        list_of_dictionaries.append(dictionary)
->>>>>>> 616b1b472291377cb5ba7254f1fd7e9bd0bf3432
 
     return list_of_dictionaries
 
@@ -167,7 +148,7 @@ def main(topic):
     browser.get("https://www.quora.com/topic/"+topic+ "/top_questions")
     time.sleep(1)
 
-    scroll_page(0, browser.find_element_by_tag_name("body"))
+    scroll_page(3, browser.find_element_by_tag_name("body"))
 
     urls = get_urls_list(browser)
     #print(urls)
