@@ -1,4 +1,4 @@
-def naughty():
+def url_filter(url):
     arrBad = [
         '2g1c',
         '2 girls 1 cup',
@@ -343,4 +343,9 @@ def naughty():
         'yellow showers',
         'yiffy',
         'zoophilia']
-    return arrBad
+    for word in arrBad:
+        if word in url:
+            url = ""
+            return url
+        else:
+            return url
