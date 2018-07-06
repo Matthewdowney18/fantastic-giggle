@@ -6,6 +6,7 @@ import time
 from nltk.tokenize import RegexpTokenizer
 import hunspell
 import pandas as pd
+import os
 
 
 hobj = hunspell.HunSpell('/usr/share/hunspell/en_US.dic', '/usr/share/hunspell/en_US.aff')
@@ -13,11 +14,16 @@ tokenizer = RegexpTokenizer(r'\w+')
 
 
 def make_dictionary(answer_counter, question_counter, url, columns, mispelled, q_text, length):
-    '''this creates a dictionary that can be added to a list to make the table
-    :param soup: beautiful soup object
-    :param columns: list of the colums for the data
-    :param types: list of types for the data
-    :return: returns the list of dictionaries
+    '''creates a dictionary that can be used in making a table
+
+    :param answer_counter: answer number
+    :param question_counter: question number
+    :param url: url
+    :param columns: column header
+    :param mispelled: list of mispelled words
+    :param q_text:
+    :param length:
+    :return:
     '''
     text_info = {}
     text_info[columns[0]] = url
@@ -32,17 +38,17 @@ def make_dictionary(answer_counter, question_counter, url, columns, mispelled, q
 
 def check_spelling(text):
     '''creates a list of misspelled words in text
-
     :param text: the text
     :return: list of errors
     '''
-    incorrect = set()
-    num_incorrect = 0
+    incorrect = []
+    length = 0
     words = tokenizer.tokenize(text)
     for element in words:
+        length += 1
         if not hobj.spell(element):
-            incorrect.add(element)
-    return list(incorrect)
+            incorrect.append(element)
+    return incorrect, length
 
 
 def find_answers(soup, answer_counter, question_counter, url, columns):
@@ -53,11 +59,16 @@ def find_answers(soup, answer_counter, question_counter, url, columns):
     :param soup: the soup object from BeautifulSoup and allows for the parsing of the website
     :return: returns the count of how many text files have been made so more files can continue to be made
     """
+    dictonaries = []
     divs = soup.find_all("div", class_="Answer AnswerBase")  # finds all the div tags with the answer class
+    qdiv = soup.find_all("h1")
+    for q in qdiv:
+        question_text = q.find("span", class_="ui_qtext_rendered_qtext")
+        question_counter += 1
     for d in divs:
         answers = d.find_all("p")  # within the span tags finds all the paragraph tags so answers can be kept together
         answer_counter += 1
-        mispelled = []
+        all_mispelled = set()
         length = 0
         with open(str(answer_counter) + '_Experiences in life_' + str(question_counter) + ".txt", "w+") as f:
             for a in answers:
@@ -65,9 +76,10 @@ def find_answers(soup, answer_counter, question_counter, url, columns):
                 f.write("\n")
                 mispelled, line_length = check_spelling(a.text)
                 length += line_length
-                mispelled.append(mispelled)
-        dictonary = make_dictionary(answer_counter, question_counter, url, columns, mispelled, length)
-    return answer_counter, dictonary
+                all_mispelled.update(set(mispelled))
+        dictonary = make_dictionary(answer_counter, question_counter, url, columns, list(all_mispelled), question_text.text, length)
+        dictonaries.append(dictonary)
+    return answer_counter, question_counter, dictonaries
 
 def soup_given_url(given_url):
     """
@@ -109,14 +121,14 @@ def get_urls_list(browser):
 
 def get_dictionaries(urls, columns):
     list_of_dictionaries = []
-
+    #urls = ['https://www.quora.com/What-is-a-Muslim-religious-service-like']
     answer_count = 0
     question_counter = 0
     for url in urls:
+        print('urls left: '+str(len(urls)-question_counter))
         soup = soup_given_url(url)
-        answer_count, dictionary = find_answers(soup, answer_count, question_counter, url, columns)
-        list_of_dictionaries.append(dictionary)
-        question_counter += 1
+        answer_count, question_counter, dictionary = find_answers(soup, answer_count, question_counter, url, columns)
+        list_of_dictionaries+=dictionary
 
     return list_of_dictionaries
 
@@ -126,13 +138,17 @@ def main(topic):
     main function calls all the other functions and creates the text files with answers
     :param topic: the topic in quora
     '''
+    os.makedirs("/home/downey/PycharmProjects/quora/texts")
+    # then we change the directory that python looks at to the new place.
+    os.chdir("/home/downey/PycharmProjects/quora/texts")
+
     driverLocation = '/home/downey/Desktop/chromedriver_linux64/chromedriver'
     browser = webdriver.Chrome(driverLocation)
 
-    browser.get("https://www.quora.com/topic/"+topic+ "/all_questions")
+    browser.get("https://www.quora.com/topic/"+topic+ "/top_questions")
     time.sleep(1)
 
-    scroll_page(4, browser.find_element_by_tag_name("body"))
+    scroll_page(0, browser.find_element_by_tag_name("body"))
 
     urls = get_urls_list(browser)
     #print(urls)
@@ -142,7 +158,6 @@ def main(topic):
     dictionaries = get_dictionaries(urls, columns)
 
     table = pd.DataFrame.from_records(dictionaries, columns=columns)
-    print(table)
     table.to_csv(path_or_buf='experiences_table.csv')
 
 main(str('Experiences-in-Life'))
