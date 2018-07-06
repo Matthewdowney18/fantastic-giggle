@@ -3,9 +3,49 @@ import urllib.request
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 import time
+from nltk.tokenize import RegexpTokenizer
+import hunspell
+import pandas as pd
 
 
-def find_answers(soup, counter):
+hobj = hunspell.HunSpell('/usr/share/hunspell/en_US.dic', '/usr/share/hunspell/en_US.aff')
+tokenizer = RegexpTokenizer(r'\w+')
+
+
+def make_dictionary(answer_counter, question_counter, url, columns, mispelled, q_text, length):
+    '''this creates a dictionary that can be added to a list to make the table
+    :param soup: beautiful soup object
+    :param columns: list of the colums for the data
+    :param types: list of types for the data
+    :return: returns the list of dictionaries
+    '''
+    text_info = {}
+    text_info[columns[0]] = url
+    text_info[columns[1]] = question_counter
+    text_info[columns[2]] = q_text
+    text_info[columns[3]] = answer_counter
+    text_info[columns[4]] = mispelled
+    text_info[columns[5]] = len(mispelled)
+    text_info[columns[6]] = length
+    return text_info
+
+
+def check_spelling(text):
+    '''creates a list of misspelled words in text
+
+    :param text: the text
+    :return: list of errors
+    '''
+    incorrect = set()
+    num_incorrect = 0
+    words = tokenizer.tokenize(text)
+    for element in words:
+        if not hobj.spell(element):
+            incorrect.add(element)
+    return list(incorrect)
+
+
+def find_answers(soup, answer_counter, question_counter, url, columns):
     """
     Goes through the soup object to find all divs that contain the answer class (Answer AnswerBase) then searches within
     those tags for the <p> tags which contain the actual text for the answer and then creates a new txt file which
@@ -16,12 +56,18 @@ def find_answers(soup, counter):
     divs = soup.find_all("div", class_="Answer AnswerBase")  # finds all the div tags with the answer class
     for d in divs:
         answers = d.find_all("p")  # within the span tags finds all the paragraph tags so answers can be kept together
-        counter += 1
-        with open("Text" + str(counter) + ".txt", "w+") as f:
+        answer_counter += 1
+        mispelled = []
+        length = 0
+        with open(str(answer_counter) + '_Experiences in life_' + str(question_counter) + ".txt", "w+") as f:
             for a in answers:
                 f.write(a.text)  # writes each answer in a separate text file
                 f.write("\n")
-    return counter
+                mispelled, line_length = check_spelling(a.text)
+                length += line_length
+                mispelled.append(mispelled)
+        dictonary = make_dictionary(answer_counter, question_counter, url, columns, mispelled, length)
+    return answer_counter, dictonary
 
 def soup_given_url(given_url):
     """
@@ -61,6 +107,20 @@ def get_urls_list(browser):
     return list
 
 
+def get_dictionaries(urls, columns):
+    list_of_dictionaries = []
+
+    answer_count = 0
+    question_counter = 0
+    for url in urls:
+        soup = soup_given_url(url)
+        answer_count, dictionary = find_answers(soup, answer_count, question_counter, url, columns)
+        list_of_dictionaries.append(dictionary)
+        question_counter += 1
+
+    return list_of_dictionaries
+
+
 def main(topic):
     '''
     main function calls all the other functions and creates the text files with answers
@@ -77,11 +137,12 @@ def main(topic):
     urls = get_urls_list(browser)
     #print(urls)
 
-    count = 0
-    for url in urls:
-        soup = soup_given_url(url)
-        count = find_answers(soup, count)
+    columns = ['URL', 'Q_id', 'Q_text', 'answer_id', 'list_of_mispelled', 'length_of_mispelled', 'length_of_text']
 
+    dictionaries = get_dictionaries(urls, columns)
 
+    table = pd.DataFrame.from_records(dictionaries, columns=columns)
+    print(table)
+    table.to_csv(path_or_buf='experiences_table.csv')
 
 main(str('Experiences-in-Life'))
