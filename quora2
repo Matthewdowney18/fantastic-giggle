@@ -4,11 +4,26 @@ from nltk.tokenize import RegexpTokenizer
 import hunspell
 import pandas as pd
 import os
-#import naughty
+from difflib import SequenceMatcher
+import re
 
 
 hobj = hunspell.HunSpell('/usr/share/hunspell/en_US.dic', '/usr/share/hunspell/en_US.aff')
 tokenizer = RegexpTokenizer(r'\w+')
+
+
+def similar(a, b):
+    '''
+    finds how similar the url is to the other urls, and returns if it is acceptable
+    :param a: the url
+    :param url: the list of urls
+    :return: bool or if it is acceptable or not vary the number at the bottom s well
+    '''
+    similarity = 0
+    similarity += SequenceMatcher(None, a[20:], b[-1][20:]).ratio()
+    print(b)
+    print(similarity, a)
+    return similarity > .6
 
 
 def make_dictionary(answer_counter, question_counter, url, columns, mispelled, q_text, length):
@@ -92,29 +107,44 @@ def soup_given_url(given_url):
     return soup
 
 
-def get_url(soup):
+def get_url(soup, urls):
     '''
-    finds the wanted links in the browser
-    :param browser: the browser object
-    :return: the list of urls of the questions
+    looks through the related questions, and finds a good one
+    :param soup: soup of the webpage
+    :param urls: list of urls, used to make sure we dont find the same one twice
+    :return: the new url
     '''
-    question = soup.find("li", {"class": "related_question"})
-    url = question.find('a')['href']
-    url = ('https://www.quora.com'+ url)
+    questions = soup.find_all("li", {"class": "related_question"})
+    for question in questions:
+        url = question.find('a')['href']
+        print(url)
+        url = ('https://www.quora.com'+ url)
+        searchObj = re.search('you', url, re.M | re.I)
+        if url not in urls and similar(url, urls) and searchObj:
+            break
     return url
 
 
 def get_dictionaries(first_url, questions, columns):
+    '''
+    for the number of questions you want, it finds the questions, and creates a list of dictionaries with the answers
+    :param first_url: the url of the first question
+    :param questions: number of questions that are wanted
+    :param columns: colums for making the dictionaries
+    :return: the list of dictionaries
+    '''
     list_of_dictionaries = []
     answer_count = 0
     question_counter = 0
     url = first_url
+    urls = []
     for i in range(0, questions):
+        urls.append(url)
         print('urls left: '+str(questions-i))
         soup = soup_given_url(url)
         answer_count, question_counter, dictionary = find_answers(soup, answer_count, question_counter, url, columns)
         list_of_dictionaries += dictionary
-        url = get_url(soup)
+        url = get_url(soup, urls)
     return list_of_dictionaries
 
 
@@ -129,7 +159,7 @@ def main(topic):
 
     columns = ['URL', 'Q_id', 'Q_text', 'answer_id', 'list_of_mispelled', 'length_of_mispelled', 'length_of_text']
 
-    dictionaries = get_dictionaries('https://www.quora.com/What-is-a-near-death-experience-youve-had', 5, columns)
+    dictionaries = get_dictionaries('https://www.quora.com/What-is-the-biggest-scam-you%E2%80%99ve-ever-seen', 5, columns)
 
     table = pd.DataFrame.from_records(dictionaries, columns=columns)
     table.to_csv(path_or_buf='experiences_table.csv')
