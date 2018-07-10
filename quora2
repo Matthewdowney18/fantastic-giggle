@@ -72,6 +72,7 @@ def find_answers(soup, answer_counter, question_counter, url, columns):
     :param soup: the soup object from BeautifulSoup and allows for the parsing of the website
     :return: returns the count of how many text files have been made so more files can continue to be made
     """
+    bad_count = 0
     dictonaries = []
     divs = soup.find_all("div", class_="Answer AnswerBase")  # finds all the div tags with the answer class
     qdiv = soup.find_all("h1")
@@ -79,12 +80,15 @@ def find_answers(soup, answer_counter, question_counter, url, columns):
         question_text = q.find("span", class_="ui_qtext_rendered_qtext")
         question_counter += 1
     for d in divs:
-        answers = d.find_all("p")  # within the span tags finds all the paragraph tags so answers can be kept together
+        answers = d.find_all("p")  # within the div tags finds all the paragraph tags so answers can be kept together
         answer_counter += 1
         all_mispelled = set()
         length = 0
         with open(str(answer_counter) + '_Experiences in life_' + str(question_counter) + ".txt", "w+") as f:
             for a in answers:
+                bad_count = filter_url_or_answer(a.text)
+                if bad_count != 0:
+                    break
                 f.write(a.text)  # writes each answer in a separate text file
                 f.write("\n")
                 mispelled, line_length = check_spelling(a.text)
@@ -114,6 +118,29 @@ def get_url(soup, urls):
     :param urls: list of urls, used to make sure we dont find the same one twice
     :return: the new url
     '''
+    bad_count = 0
+    questions = soup.find_all("li", {"class": "related_question"})
+    for question in questions:
+        url = question.find('a')['href']
+        print(url)
+        url = ('https://www.quora.com'+ url)
+        searchObj = re.search('you', url, re.M | re.I)
+        if url not in urls and similar(url, urls) and searchObj:
+            break
+        bad_count = filter_url_or_answer(url)
+        if bad_count == 0:
+            break
+    return url
+
+def filter_url_or_answer(string):
+    """
+    a huge list of dirty/inappropriate/bad words are included in this function so that any string passed into this
+    function will be compared to the list. If the string is found to be containing any of the words the counter for
+    bad words will go up and be returned. Essentially a function that is just used for filtering
+    :param string: any string to be compared against the list, in the current case, urls and answers
+    :return: the number of bad words found in the string
+    """
+    bad_count = 0
     arrBad = [
         '2g1c', '2 girls 1 cup', 'acrotomophilia', 'anal', 'anilingus', 'anus', 'arsehole', 'ass', 'asshole', 'assmunch'
         , 'auto erotic', 'autoerotic', 'babeland', 'baby batter', 'ball gag', 'ball gravy', 'ball kicking',
@@ -156,19 +183,11 @@ def get_url(soup, urls):
         'urophilia', 'vagina', 'venus mound', 'vibrator', 'violet blue', 'violet wand', 'vorarephilia', 'voyeur',
         'vulva', 'wank', 'wet dream', 'wetback', 'white power', 'women rapping', 'wrapping men', 'wrinkled starfish',
         'xx', 'xxx', 'yaoi', 'yellow showers', 'yiffy', 'zoophilia']
+    for word in arrBad:
+        if word in string:
+            bad_count += 1
+    return bad_count
 
-    questions = soup.find_all("li", {"class": "related_question"})
-    for question in questions:
-        url = question.find('a')['href']
-        print(url)
-        url = ('https://www.quora.com'+ url)
-        searchObj = re.search('you', url, re.M | re.I)
-        if url not in urls and similar(url, urls) and searchObj:
-            break
-        for word in arrBad:
-            if word not in url:
-                break
-    return url
 
 
 def get_dictionaries(first_url, questions, columns):
