@@ -1,5 +1,6 @@
 from bs4 import BeautifulSoup
 import urllib.request
+import nltk
 from nltk.tokenize import RegexpTokenizer
 import hunspell
 import pandas as pd
@@ -12,6 +13,35 @@ hobj = hunspell.HunSpell('/usr/share/hunspell/en_US.dic', '/usr/share/hunspell/e
 tokenizer = RegexpTokenizer(r'\w+')
 
 
+def check_page(soup):
+    topics_list = []
+    topics = soup.find_all("span", {"class": "TopicNameSpan TopicName"})
+    topics += (soup.find_all("span", {"class": "TopicName TopicNameSpan"}))
+    print(topics)
+    for topic in topics:
+        topics_list.append(topic.text)
+    print(topics_list)
+    length = len(soup.find_all("div", class_="Answer AnswerBase"))
+    return 'Experiences in Life' in topics_list and length >= 10
+
+
+def similar_nouns(a, b):
+    used_nouns = set()
+    new_nouns = set()
+    for url in b:
+        words = tokenizer.tokenize(url)
+        tagged_words = nltk.pos_tag(words)
+        for tagged_word in tagged_words[4:]:
+            if tagged_word[1] == 'NN':
+                used_nouns.add(tagged_word[0])
+    words = tokenizer.tokenize(a)
+    tagged_words = nltk.pos_tag(words)
+    for tagged_word in tagged_words[4:]:
+        if tagged_word[1] == 'NN':
+            new_nouns.add(tagged_word[0])
+    return bool(used_nouns & new_nouns)
+
+
 def similar(a, b):
     '''
     finds how similar the url is to the other urls, and returns if it is acceptable
@@ -21,9 +51,8 @@ def similar(a, b):
     '''
     similarity = 0
     similarity += SequenceMatcher(None, a[20:], b[-1][20:]).ratio()
-    print(b)
-    print(similarity, a)
-    return similarity > .6
+
+    return similarity > .65
 
 
 def make_dictionary(answer_counter, question_counter, url, columns, mispelled, q_text, length):
@@ -114,13 +143,15 @@ def get_url(soup, urls):
     :param urls: list of urls, used to make sure we dont find the same one twice
     :return: the new url
     '''
+    i = 0
     questions = soup.find_all("li", {"class": "related_question"})
     for question in questions:
         url = question.find('a')['href']
-        print(url)
         url = ('https://www.quora.com'+ url)
         searchObj = re.search('you', url, re.M | re.I)
-        if url not in urls and similar(url, urls) and searchObj:
+        i += 1
+        if url not in urls and searchObj and not similar_nouns(url, urls):
+            print('url # '+ str(i))
             break
     return url
 
@@ -138,13 +169,19 @@ def get_dictionaries(first_url, questions, columns):
     question_counter = 0
     url = first_url
     urls = []
-    for i in range(0, questions):
+    i = 0
+    while i < questions:
         urls.append(url)
         print('urls left: '+str(questions-i))
         soup = soup_given_url(url)
-        answer_count, question_counter, dictionary = find_answers(soup, answer_count, question_counter, url, columns)
-        list_of_dictionaries += dictionary
+        if check_page(soup):
+            answer_count, question_counter, dictionary = find_answers(soup, answer_count, question_counter, url, columns)
+            list_of_dictionaries += dictionary
+            i += 1
+            print('its good')
         url = get_url(soup, urls)
+        print(url)
+        print('---------')
     return list_of_dictionaries
 
 
@@ -159,7 +196,7 @@ def main(topic):
 
     columns = ['URL', 'Q_id', 'Q_text', 'answer_id', 'list_of_mispelled', 'length_of_mispelled', 'length_of_text']
 
-    dictionaries = get_dictionaries('https://www.quora.com/What-is-the-biggest-scam-you%E2%80%99ve-ever-seen', 5, columns)
+    dictionaries = get_dictionaries('https://www.quora.com/What-is-your-biggest-regret-in-life-1', 3, columns)
 
     table = pd.DataFrame.from_records(dictionaries, columns=columns)
     table.to_csv(path_or_buf='experiences_table.csv')
