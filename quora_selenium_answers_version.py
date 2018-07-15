@@ -1,14 +1,10 @@
 import time
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
-from bs4 import BeautifulSoup
-import urllib.request
-import nltk
 from nltk.tokenize import RegexpTokenizer
 import hunspell
 import pandas as pd
 import os
-from difflib import SequenceMatcher
 import re
 
 hobj = hunspell.HunSpell('/usr/share/hunspell/en_US.dic', '/usr/share/hunspell/en_US.aff')
@@ -53,65 +49,8 @@ def check_spelling(text):
     return incorrect, length
 
 
-def find_answers(urls):
-    """
-    Goes through the soup object to find all divs that contain the answer class (Answer AnswerBase) then searches within
-    those tags for the <p> tags which contain the actual text for the answer and then creates a new txt file which
-    contains that text
-    :param soup: the soup object from BeautifulSoup and allows for the parsing of the website
-    :return: returns the count of how many text files have been made so more files can continue to be made
-    """
-    driverLocation = '/home/downey/Desktop/chromedriver_linux64/chromedriver'
-    browser = webdriver.Chrome(driverLocation)
-    count = 0
-    question_counter = 0
-    bad_count = 0
-    for url in urls:
-        answer_counter = 1
-        question_counter += 1
-        browser.execute_script("window.open('');")
-        time.sleep(1)
-        browser.switch_to.window(browser.window_handles[1])
-        browser.get(url)
-        time.sleep(2)
-        scroll_page(3, browser.find_element_by_tag_name("body"))
-        answers = browser.find_elements_by_css_selector('div[class="Answer AnswerBase"]')
-        for answer in answers:
-            # creating the misspelled word set might go here? not sure might need to test
-            with open(str(answer_counter) + '_Experiences_in_life_' + str(question_counter) + '.txt', "w+") as f:
-                text = answer.find_element_by_css_selector('span[class="ui_qtext_rendered_qtext"]').text
-                bad_count = filter_url_or_answer(text)
-                if bad_count == 0:
-                    f.write(text)
-                    answer_counter += 1
-                    # spellchecker stuff should be put right here im pretty sure
-                    #
-                    #
-                    #
-            # dictionary stuff might be here im pretty sure
-            #
-            #
-            #
-        browser.close()
-        time.sleep(1)
-        browser.switch_to.window(browser.window_handles[0])
-        time.sleep(1)
-        count += 1
-        if count == 2:  # this is just used to limit the amount of urls opened, testing purposes
-            break
-        # wont need to return anything with this version since this function takes in all the urls instead of just one
-        #except maybe the dictionary but im not sure how thats working so im not gunna mess with that
-
-def soup_given_url(given_url):
-    """
-    Takes in a url then using the BeautifulSoup library, creates a soup object which then can be parsed
-    :param given_url: the url which you wish to go to and create the soup object from
-    :return: returns the soup object back to main so it can be worked with and parsed
-    """
-    url = given_url
-    content = urllib.request.urlopen(url)
-    soup = BeautifulSoup(content, "html.parser")
-    return soup
+def get_size(string):
+    return [int(s) for s in string.split() if s.isdigit()]
 
 
 def filter_url_or_answer(string):
@@ -139,14 +78,14 @@ def filter_url_or_answer(string):
         'cum', 'cumming', 'cunnilingus', 'cunt', 'darkie', 'date rape', 'daterape', 'deep throat', 'deepthroat',
         'dick', 'dildo', 'dirty pillows', 'dirty sanchez', 'dog style', 'doggie style', 'doggiestyle', 'doggy style',
         'doggystyle', 'dolcett', 'domination', 'dominatrix', 'dommes', 'donkey punch', 'double dong',
-        'double penetration', 'dp action', 'eat my ass', 'ecchi', 'ejaculation', 'erotic', 'erotism', 'escort',
+        'double penetration', 'dp action', 'eat my ass', 'ecchi', 'ecs', 'ejaculation', 'erotic', 'erotism', 'escort',
         'ethical slut', 'eunuch', 'faggot', 'fecal', 'felch', 'fellatio', 'feltch', 'female squirting', 'femdom',
         'figging', 'fingering', 'fisting', 'foot fetish', 'footjob', 'frotting', 'fuck', 'fucking', 'fuck buttons',
         'fudge packer', 'fudgepacker', 'futanari', 'g-spot', 'gang bang', 'gay sex', 'genitals', 'giant cock',
         'girl on', 'girl on top', 'girls gone wild', 'goatcx', 'goatse', 'gokkun', 'golden shower', 'goo girl',
         'goodpoop', 'goregasm', 'grope', 'group sex', 'guro', 'hand job', 'handjob', 'hard core', 'hardcore', 'hentai',
         'homoerotic', 'honkey', 'hooker', 'hot chick', 'how to kill', 'how to murder', 'huge fat', 'humping', 'incest',
-        'intercourse', 'jack off', 'jail bait', 'jailbait', 'jerk off', 'jigaboo', 'jiggaboo', 'jiggerboo', 'jizz',
+        'intercourse', 'jack off', 'jail bait', 'jailbait', 'jerk', 'lesbian', 'jigaboo', 'jiggaboo', 'jiggerboo', 'jizz',
         'juggs', 'kike', 'kinbaku', 'kinkster', 'kinky', 'knobbing', 'leather restraint', 'leather straight jacket',
         'lemon party', 'lolita', 'lovemaking', 'make me come', 'male squirting', 'masturbate', 'menage a trois',
         'milf', 'missionary position', 'motherfucker', 'mound of venus', 'mr hands', 'muff diver', 'muffdiving',
@@ -166,40 +105,16 @@ def filter_url_or_answer(string):
         'tubgirl', 'tushy', 'twat', 'twink', 'twinkie', 'two girls one cup', 'undressing', 'upskirt', 'urethra play',
         'urophilia', 'vagina', 'venus mound', 'vibrator', 'violet blue', 'violet wand', 'vorarephilia', 'voyeur',
         'vulva', 'wank', 'wet dream', 'wetback', 'white power', 'women rapping', 'wrapping men', 'wrinkled starfish',
-        'xx', 'xxx', 'yaoi', 'yellow showers', 'yiffy', 'zoophilia'])
+        'xx', 'xxx', 'yaoi', 'yellow showers', 'yiffy', 'zoophilia',  'kiss', 'kissing', 'kisses', 'gay', 'jerk',
+        'poop', 'rave', 'overdose', 'weed', 'ecstasy', 'crossdress', 'rob', 'drugs', 'instagram', 'Instagram',
+        'cheating', 'navel', 'exhibitionist', 'dirty'])
     for word in arrBad:
         if word in string:
             bad_count += 1
     return bool(arrBad & string_words)
 
 
-def get_dictionaries(url_list, columns, browser):
-    '''
-    with the provided urls, it determines which ones are good, and then creates a dictionary for them. then it
-    combines the dictionaries into a list that can be used to make a table in pandas
-    :param url_list: the list of urls
-    :param columns: the colums for the tables, and the dictionaries
-    :return: the list of dictionaries
-    '''
-    list_of_dictionaries = []
-    answer_count = 0
-    question_counter = 0
-    i = 0
-    for url in url_list:
-        print(url)
-        print('urls left: '+str(len(url_list)-i))
-        i += 1
-        searchObj = re.search('Unanswered', url, re.M | re.I)
-        if not filter_url_or_answer(url) and not searchObj:
-            soup = soup_given_url(url)
-            answer_count, question_counter, dictionary = find_answers(browser, url) #may need to change this or modify my
-                                                                                    #function so that it works with one url
-            list_of_dictionaries += dictionary
-            print('its good')
-    return list_of_dictionaries
-
-
-def scroll_page(no_of_pagedowns, elem):
+def scroll_page(no_of_pagedowns, pause_time, elem):
     '''
     scrolls down the browser page to get more linkg
     :param no_of_pagedowns: the number of pages you want to scroll
@@ -208,7 +123,8 @@ def scroll_page(no_of_pagedowns, elem):
     '''
     while no_of_pagedowns:
         elem.send_keys(Keys.PAGE_DOWN)
-        time.sleep(3)
+        time.sleep(pause_time)
+        print('pagedowns left:' + str(no_of_pagedowns))
         no_of_pagedowns -= 1
 
 
@@ -225,32 +141,100 @@ def get_urls_list(browser):
     return list
 
 
+def find_answers(urls, columns):
+    """
+    opens each url, and then collects various information from it and then creates a dictionary from it.
+    it puts the dictionary, and creates a table. its pretty bad lol
+    :param urls: the list of urls
+    :param columns: used for creating the dctionary and creating the table
+    """
+    driverLocation = '/home/downey/Desktop/chromedriver_linux64/chromedriver'
+    browser = webdriver.Chrome(driverLocation)
+
+    i = 0
+    answer_counter = 0
+    question_counter = 0
+    dictionaries = []
+
+    table = pd.DataFrame.from_records(dictionaries, columns=columns)
+    table.to_csv(path_or_buf='experiences_table.csv')
+
+    for url in urls:
+        print(url)
+        print('urls left: ' + str(len(urls) - i))
+        i += 1
+
+        searchObj = re.search('Unanswered', url, re.M | re.I)
+        if filter_url_or_answer(url) or searchObj:
+            print('unusable')
+            continue
+
+        browser.execute_script("window.open('');")
+        time.sleep(.5)
+        browser.switch_to.window(browser.window_handles[1])
+        browser.get(url)
+        time.sleep(1)
+        scroll_page(0, .5, browser.find_element_by_tag_name("body"))
+
+        question = browser.find_elements_by_css_selector('h1')
+        if not question == []:
+            question_text = question[0].find_elements_by_css_selector('span[class="ui_qtext_rendered_qtext"]')
+            answers = browser.find_elements_by_css_selector('div[class="Answer AnswerBase"]')
+            for answer in answers:
+                answer_url = answer.find_element_by_css_selector('a[class="answer_permalink"]').get_attribute('href')
+                length = 0
+                with open(str(answer_counter) + '_Experiences_in_life_' + str(question_counter) + '.txt', "w+") as f:
+                    text = answer.find_element_by_css_selector('span[class="ui_qtext_rendered_qtext"]').text
+                    f.write(text)
+                    misspelled, line_length = check_spelling(text)
+                    length += line_length
+                dictionary = make_dictionary(answer_counter, question_counter, answer_url, columns, misspelled,
+                                             question_text[0].text, length)
+                dictionaries.append(dictionary)
+                answer_counter += 1
+        browser.close()
+        time.sleep(.5)
+        browser.switch_to.window(browser.window_handles[0])
+        time.sleep(.5)
+
+        question_counter += 1
+
+        os.remove('experiences_table.csv')
+        table = pd.DataFrame.from_records(dictionaries, columns=columns)
+        table.to_csv(path_or_buf='experiences_table.csv')
+
+
 def main(topic, number_of_scroll_downs, file_name):
     '''
-    main function calls all the other functions and prints the output
-    :param topic: the topic in quora
+    main function gathers the list of urls and then sends them to the make dictionaries function.
+    this makes a file with all the text files of the answers, a text file with the urls, and a csv
+    with information about the answers
+    :param topic: the topic on quorsa
+    :param number_of_scroll_downs: how many scroll downs to get urls
+    :param file_name: the name of the file it makes
     '''
+
     driverLocation = '/home/downey/Desktop/chromedriver_linux64/chromedriver'
     browser = webdriver.Chrome(driverLocation)
 
     browser.get("https://www.quora.com/topic/"+topic+ "/all_questions")
     time.sleep(1)
 
-    scroll_page(number_of_scroll_downs, browser.find_element_by_tag_name("body"))
+    scroll_page(number_of_scroll_downs, 10, browser.find_element_by_tag_name("body"))
 
     urls = get_urls_list(browser)
     print(urls)
+    with open('urls'+ '.txt', "w+") as f:
+        for url in urls:
+            f.write(url)
+            f.write('\n')
 
     os.makedirs("/home/downey/PycharmProjects/quora/"+file_name)
-    # then we change the directory that python looks at to the new place.
-    os.chdir("/home/downey/PycharmProjects/quora/texts")
+    os.chdir("/home/downey/PycharmProjects/quora/" + file_name)
 
     columns = ['URL', 'Q_id', 'Q_text', 'answer_id', 'list_of_mispelled', 'length_of_mispelled', 'length_of_text']
 
-    dictionaries = get_dictionaries(urls, columns, browser)
+    find_answers(urls, columns)
 
-    table = pd.DataFrame.from_records(dictionaries, columns=columns)
-    table.to_csv(path_or_buf='experiences_table.csv')
 
-# can be run from the command line
-main(str('Experiences-in-Life'), 50, 'texts')
+main(str('Experiences-in-Life'), 250, 'texts_4')
